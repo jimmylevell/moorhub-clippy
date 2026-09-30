@@ -1,4 +1,5 @@
 import { TARGETS, normalize, pickTarget, validate } from './objects.js'
+import { createHunt } from './hunted.js'
 
 export const ROUND_MS = 60000
 export const MAGAZINE = 10       // shots before a reload
@@ -7,6 +8,13 @@ export const TROUBLE_MAX = 100   // shoot too many people-things and the game en
 export const MISS_COST = 1
 export const GRAVITY = 115       // for things that pop up from the bottom
 export const POPUP_MS = 850      // how long a floating +10 stays on screen
+
+// --- the hidden second easter egg -------------------------------------------
+// Fire this many shots this quickly and the game turns around on you.
+export const RAGE_SHOTS = 7
+export const RAGE_WINDOW = 1400
+export const FLIP_MS = 2200      // the glitch screen between the two games
+export const SURVIVE_BONUS = 120
 
 export function spawnDelay(t) {
   return Math.max(340, 1050 - t * 0.011)
@@ -19,7 +27,7 @@ export function createGame(targets = TARGETS) {
   if (errors.length) throw new Error('Bad target list:\n' + errors.join('\n'))
 
   return {
-    phase: 'menu',          // menu | intro | playing | over
+    phase: 'menu',          // menu | intro | playing | flipping | hunted | over
     defs: normalize(targets),
     t: 0,
     duration: ROUND_MS,
@@ -38,6 +46,11 @@ export function createGame(targets = TARGETS) {
     events: [],
     paused: false,
     ending: null,
+    shotTimes: [],          // recent shot times, for spotting a rage burst
+    hunt: null,             // the flipped mini-game, when it is running
+    flipUntil: 0,
+    flips: 0,               // how many times you triggered it
+    survived: 0,            // how many times you got back out
     stats: { good: 0, bad: 0, escaped: 0, spared: 0, byId: {} },
   }
 }
@@ -213,16 +226,43 @@ function autoReload(s) {
   return s.ammo === 0 && !s.reloadingUntil ? { ...s, reloadingUntil: s.t + RELOAD_MS } : s
 }
 
+export const RAGE_EARLIEST = 3000  // give people a few seconds of normal game first
+
+export function isRaging(shotTimes, t) {
+  if (t < RAGE_EARLIEST) return false
+  const recent = shotTimes.filter((s) => t - s < RAGE_WINDOW)
+  return recent.length >= RAGE_SHOTS
+}
+
+// Every shot ends up here: reload if dry, then check whether that burst was
+// fast enough to turn the game around.
+function finishShot(s) {
+  const out = autoReload(s)
+  if (isRaging(out.shotTimes, out.t)) {
+    return {
+      ...out,
+      phase: 'flipping',
+      flipUntil: out.t + FLIP_MS,
+      flips: out.flips + 1,
+      shotTimes: [],
+      objects: [],
+      popups: [],
+    }
+  }
+  return out
+}
+
 export function shoot(state, x, y) {
   if (state.phase !== 'playing' || state.paused) return state
   if (isReloading(state) || state.ammo <= 0) return state
 
   const ammo = state.ammo - 1
   const target = findHit(state.objects, x, y)
-  const base = { ...state, ammo, shots: state.shots + 1 }
+  const shotTimes = [...state.shotTimes, state.t].filter((s) => state.t - s < RAGE_WINDOW)
+  const base = { ...state, ammo, shots: state.shots + 1, shotTimes }
 
   if (!target) {
-    return autoReload({
+    return finishShot({
       ...base,
       score: state.score - MISS_COST,
       misses: state.misses + 1,
@@ -238,7 +278,7 @@ export function shoot(state, x, y) {
     const combo = state.combo + 1
     const bonus = combo >= 3 ? Math.floor(def.points * 0.5) : 0
     const gain = def.points + bonus
-    return autoReload({
+    return finishShot({
       ...base,
       objects,
       score: state.score + gain,
@@ -257,7 +297,7 @@ export function shoot(state, x, y) {
     })
   }
 
-  const hit = autoReload({
+  const hit = finishShot({
     ...base,
     objects,
     score: state.score - def.penalty,
@@ -281,6 +321,43 @@ export function setPaused(state, paused) {
   return { ...state, paused }
 }
 
+// --- the flipped game -------------------------------------------------------
+
+// Called when the glitch screen has finished playing.
+export function enterHunt(state) {
+  if (state.phase !== 'flipping') return state
+  return { ...state, phase: 'hunted', hunt: createHunt() }
+}
+
+// Called when the flipped game is over, either way.
+export function leaveHunt(state) {
+  if (state.phase !== 'hunted' || !state.hunt) return state
+  const h = state.hunt
+
+  if (h.outcome === 'caught') {
+    return { ...state, phase: 'over', ending: 'automated', hunt: h }
+  }
+
+  // You got out. Back to work, with a small reward and a nudge.
+  return {
+    ...state,
+    phase: 'playing',
+    hunt: null,
+    survived: state.survived + 1,
+    score: state.score + SURVIVE_BONUS,
+    ammo: MAGAZINE,
+    reloadingUntil: 0,
+    shotTimes: [],
+    nextSpawnAt: state.t + 400,
+    events: addEvent(state.events, {
+      kind: 'good',
+      label: 'You got away',
+      text: 'Back to work. Try aiming this time.',
+      delta: SURVIVE_BONUS,
+    }),
+  }
+}
+
 export const ENDINGS = {
   timeup: {
     title: 'TIME UP',
@@ -290,11 +367,29 @@ export const ENDINGS = {
     title: 'TOO MUCH TROUBLE',
     line: 'You let a paperclip do too many jobs that needed a person.',
   },
+  automated: {
+    title: 'YOU HAVE BEEN AUTOMATED',
+    line: 'They found someone faster. It was a paperclip.',
+  },
 }
 
 export function getVerdict(s) {
   const { good, bad, escaped } = s.stats
 
+  if (s.ending === 'automated') {
+    return {
+      grade: 'F',
+      title: 'Replaced',
+      body: 'You fired so fast that you stopped looking at what you were firing at. Then the crosshair turned around. It is a lot less funny from this side, which is the point.',
+    }
+  }
+  if (s.survived > 0) {
+    return {
+      grade: 'S',
+      title: 'Saw the other side and came back',
+      body: `You sprayed shots until the game pointed one at you, then got out of the way ${s.survived === 1 ? 'once' : `${s.survived} times`}. Almost nobody finds this. Fewer people survive it.`,
+    }
+  }
   if (bad >= 4) {
     return {
       grade: 'A+',

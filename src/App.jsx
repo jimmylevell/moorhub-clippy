@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { createGame, startGame, showIntro, step, shoot, reload, setPaused, isReloading, MAGAZINE } from './game.js'
+import {
+  createGame, startGame, showIntro, step, shoot, reload, setPaused, isReloading,
+  enterHunt, leaveHunt, MAGAZINE, FLIP_MS,
+} from './game.js'
+import { stepHunt } from './hunted.js'
 import Arena from './components/Arena.jsx'
 import Hud, { Ticker } from './components/Hud.jsx'
 import GameOver from './components/GameOver.jsx'
 import HelpOverlay from './components/HelpOverlay.jsx'
 import Intro, { INTRO_STEPS } from './components/Intro.jsx'
+import Glitch from './components/Glitch.jsx'
+import Hunted from './components/Hunted.jsx'
 import ClippyAvatar from './components/ClippyAvatar.jsx'
 
 const SEEN_KEY = 'clippy-open-season-seen-intro'
@@ -46,6 +52,10 @@ export default function App() {
     apply(startGame)
   }
 
+  // where the pointer is, used by the flipped game
+  const mouse = useRef({ x: 50, y: 60 })
+  const [flipProgress, setFlipProgress] = useState(0)
+
   useEffect(() => {
     if (game.phase !== 'playing') return
     let raf
@@ -59,6 +69,43 @@ export default function App() {
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
   }, [game.phase])
+
+  // the glitch screen between the two games
+  useEffect(() => {
+    if (game.phase !== 'flipping') return
+    const start = performance.now()
+    let raf
+    const loop = (now) => {
+      const p = Math.min(1, (now - start) / FLIP_MS)
+      setFlipProgress(p)
+      if (p >= 1) return apply(enterHunt)
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [game.phase])
+
+  // the flipped game's own clock
+  useEffect(() => {
+    if (game.phase !== 'hunted') return
+    let raf
+    let last = performance.now()
+    const loop = (now) => {
+      const dt = Math.min(48, now - last)
+      last = now
+      apply((s) => (s.hunt ? { ...s, hunt: stepHunt(s.hunt, dt, mouse.current) } : s))
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [game.phase])
+
+  // when the flipped game resolves, go back (or end the run)
+  useEffect(() => {
+    if (game.phase !== 'hunted' || !game.hunt?.outcome) return
+    const id = setTimeout(() => apply(leaveHunt), 1300)
+    return () => clearTimeout(id)
+  }, [game.phase, game.hunt?.outcome])
 
   useEffect(() => {
     function onKey(e) {
@@ -87,7 +134,9 @@ export default function App() {
       <div className="window">
         <div className="titlebar">
           <span className="title">
-            Clippy — Helpful Assistant{game.phase === 'over' ? ' (Not Responding)' : ''}
+            {game.phase === 'flipping' || game.phase === 'hunted'
+              ? 'Clippy — Performance Review'
+              : `Clippy — Helpful Assistant${game.phase === 'over' ? ' (Not Responding)' : ''}`}
           </span>
           <span className="title-btns">
             {game.phase === 'playing' && (
@@ -145,6 +194,19 @@ export default function App() {
             </div>
           )}
 
+          {game.phase === 'flipping' && <Glitch progress={flipProgress} />}
+
+          {game.phase === 'hunted' && game.hunt && (
+            <>
+              <Hunted hunt={game.hunt} onMouse={(p) => { mouse.current = p }} />
+              {game.hunt.outcome && (
+                <div className={`hunt-result ${game.hunt.outcome}`}>
+                  {game.hunt.outcome === 'survived' ? 'YOU GOT AWAY' : 'CAUGHT'}
+                </div>
+              )}
+            </>
+          )}
+
           {game.phase === 'over' && <GameOver state={game} onRestart={begin} />}
         </div>
 
@@ -152,9 +214,13 @@ export default function App() {
           <span>
             {game.paused
               ? 'Paused.'
-              : game.phase === 'playing'
-                ? isReloading(game) ? 'Reloading…' : 'Clippy is taking aim.'
-                : 'Ready.'}
+              : game.phase === 'flipping'
+                ? 'Please hold.'
+                : game.phase === 'hunted'
+                  ? 'Assessing your role.'
+                  : game.phase === 'playing'
+                    ? isReloading(game) ? 'Reloading…' : 'Clippy is taking aim.'
+                    : 'Ready.'}
           </span>
           <span>{game.phase === 'playing' ? 'R reload · H help' : 'Internal easter egg'}</span>
         </div>

@@ -16,7 +16,7 @@ export default function GameOver({ state, onRestart }) {
       <p className="over-line">{end.line}</p>
 
       <div className="review">
-        <div className="grade">{v.grade}</div>
+        <div className={`grade grade-${v.grade.replace(/[^A-Za-z]/g, '')}`}>{v.grade}</div>
         <div className="review-body">
           <h3>{v.title}</h3>
           <p>{v.body}</p>
@@ -32,6 +32,16 @@ export default function GameOver({ state, onRestart }) {
           </tr>
           <tr><td>Work that got away</td><td>{state.stats.escaped}</td></tr>
           <tr><td>Best run in a row</td><td>×{state.bestCombo}</td></tr>
+          {state.flips > 0 && (
+            <tr className="row-secret">
+              <td>Times the game shot back</td><td>{state.flips}</td>
+            </tr>
+          )}
+          {state.survived > 0 && (
+            <tr className="row-secret">
+              <td>Times you got away</td><td>{state.survived}</td>
+            </tr>
+          )}
         </tbody>
       </table>
 

@@ -533,3 +533,210 @@ body {
 }
 .help-meters h4 { margin: 0 0 6px; font-size: 12px; }
 .help-meters p { margin: 3px 0; line-height: 1.45; }
+
+/* ===========================================================================
+   THE SECOND EASTER EGG — the glitch, then the flipped game
+   =========================================================================== */
+
+.glitch {
+  position: relative;
+  height: 420px;
+  background: #0b0b12;
+  border: 2px solid;
+  border-color: var(--dark) var(--light) var(--light) var(--dark);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: shake 0.14s infinite;
+}
+@keyframes shake {
+  0%,100% { transform: translate(0,0); }
+  25% { transform: translate(-1px, 1px); }
+  75% { transform: translate(1px, -1px); }
+}
+
+.glitch-scan {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0,255,106,0.06) 0px,
+    rgba(0,255,106,0.06) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  animation: scanroll 2.2s linear infinite;
+}
+@keyframes scanroll { to { background-position: 0 40px; } }
+
+.glitch-lines {
+  position: relative;
+  font-family: "Courier New", monospace;
+  color: #00ff6a;
+  font-size: 15px;
+  line-height: 2;
+  text-align: left;
+  text-shadow: 0 0 6px rgba(0,255,106,0.6);
+  padding: 0 18px;
+}
+.glitch-lines p { margin: 0; animation: typein 0.25s steps(12); }
+.glitch-lines p.final {
+  color: #ff4d4d;
+  font-size: 20px;
+  font-weight: bold;
+  text-shadow: 0 0 8px rgba(255,77,77,0.8);
+  margin-top: 10px;
+  letter-spacing: 2px;
+}
+@keyframes typein { from { opacity: 0; clip-path: inset(0 100% 0 0); } }
+
+.glitch-flash {
+  position: absolute; inset: 0;
+  background: #fff;
+  animation: whiteout 0.4s ease-in forwards;
+}
+@keyframes whiteout { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- the flipped game ---------- */
+.hunt-wrap { animation: dropin 0.35s ease-out; }
+@keyframes dropin { from { opacity: 0; transform: scale(0.97); } }
+
+.hunt-hud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.hunt-box {
+  background: #000; color: #ff5a5a;
+  font-family: "Courier New", monospace;
+  padding: 4px 12px;
+  border: 2px solid;
+  border-color: var(--dark) var(--light) var(--light) var(--dark);
+  display: flex; flex-direction: column; justify-content: center;
+}
+.hunt-lives { display: flex; gap: 4px; }
+.hunt-lives .life {
+  font-size: 17px;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  background: #7fd4ff;
+  border: 2px solid;
+  border-color: #cfefff #2b6f93 #2b6f93 #cfefff;
+}
+.hunt-lives .life.gone {
+  background: #6b6b6b;
+  border-color: #8a8a8a #3a3a3a #3a3a3a #8a8a8a;
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.hunt-note {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: bold;
+  color: #8c2318;
+  background: #fbe9e6;
+  border: 1px solid var(--red);
+  padding: 4px 10px;
+}
+
+.hunt-arena {
+  cursor: none;
+  background: linear-gradient(#3a2a2a 0%, #55403c 58%, #4a3a30 58%, #392c25 100%);
+}
+
+/* a crosshair choosing where to fire */
+.locker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+}
+.locker-ring {
+  position: absolute;
+  border: 0.35cqw dashed rgba(255, 90, 90, 0.95);
+  border-radius: 50%;
+  transform: rotate(0deg);
+  animation: spin 2s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.locker-target {
+  position: absolute;
+  border: 0.3cqw solid rgba(255, 60, 60, 0.75);
+  border-radius: 50%;
+  background: rgba(255, 60, 60, 0.13);
+}
+.locker-label {
+  position: absolute;
+  top: 115%;
+  white-space: nowrap;
+  font-size: 1.7cqw;
+  font-weight: bold;
+  color: #ffd2d2;
+  background: rgba(60,0,0,0.75);
+  border: 1px solid rgba(255,90,90,0.6);
+  padding: 0.1cqw 0.45cqw;
+}
+
+.blast {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255,240,180,0.95) 0%, rgba(255,120,40,0.8) 45%, rgba(255,60,20,0) 72%);
+  animation: blastpop 0.36s ease-out forwards;
+}
+.blast.caught {
+  background: radial-gradient(circle, #fff 0%, rgba(255,40,40,0.9) 45%, rgba(255,0,0,0) 72%);
+}
+@keyframes blastpop {
+  from { transform: translate(-50%,-50%) scale(0.35); opacity: 1; }
+  to { transform: translate(-50%,-50%) scale(1.25); opacity: 0; }
+}
+
+/* you, as the thing being shot at */
+.runner {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 3;
+}
+.runner-icon {
+  font-size: 5cqw;
+  filter: drop-shadow(0 0 0.5cqw #7fd4ff) drop-shadow(1px 2px 2px rgba(0,0,0,0.6));
+}
+.runner-label {
+  margin-top: 0.2cqw;
+  font-size: 1.7cqw;
+  font-weight: bold;
+  color: #06283d;
+  background: #7fd4ff;
+  border: 1px solid #06283d;
+  padding: 0.1cqw 0.5cqw;
+}
+.runner.hurt { animation: blink 0.16s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0.25; } }
+
+.hunt-result {
+  position: absolute;
+  left: 50%; top: 45%;
+  transform: translate(-50%, -50%);
+  font-size: 2.2rem;
+  font-weight: bold;
+  letter-spacing: 3px;
+  padding: 10px 26px;
+  border: 3px solid;
+  z-index: 10;
+  animation: pop 0.3s ease-out;
+}
+.hunt-result.survived { color: #0d5c1e; background: #d6f5dc; border-color: #0d5c1e; }
+.hunt-result.caught { color: #fff; background: #8c1a10; border-color: #ff5a5a; }
+
+/* the secret grade on the results screen */
+.grade.grade-S { color: #b8860b; text-shadow: 0 0 8px rgba(255,200,0,0.5); }
+.grade.grade-F { color: var(--red); }
+.tally tr.row-secret td { color: #b8860b; font-style: italic; }

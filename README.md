@@ -11,7 +11,7 @@ work. Let the people go.
 npm install
 npm run dev      # http://localhost:5173
 npm run build    # ready-to-host files in dist/
-npm test         # 84 checks, no browser needed
+npm test         # 134 checks, no browser needed
 ```
 
 Everything comes from npm. Nothing is loaded from the internet at runtime.
@@ -75,6 +75,45 @@ shot, the joke stops working.
 
 ---
 
+## There is a second easter egg
+
+It is hidden inside the game, and this section spoils it. Stop reading if you
+would rather find it.
+
+<details>
+<summary>Show me anyway</summary>
+
+Stop aiming and just spray clicks — **seven shots in about a second and a half**
+— and the game stops being a shooting game.
+
+The screen glitches. A system notice says your output is unusually high, that
+this role could be done faster, and that roles are being reassigned. Then it
+flips: **you become the thing under the crosshair.**
+
+You are the paperclip now. Crosshairs labelled "Efficiency review", "Your
+replacement" and "Headcount planning" creep toward you and fire. You have three
+lives and 16 seconds. Keep the mouse moving and they always fire a step behind
+you. Stand still and they arrive.
+
+- **Get away** → back to the normal round, +120 points, and the end screen
+  gives you a secret **S** grade: *"Saw the other side and came back."*
+- **Get caught** → the run ends with **YOU HAVE BEEN AUTOMATED** and an **F**:
+  *"You fired so fast that you stopped looking at what you were firing at. Then
+  the crosshair turned around."*
+
+It cannot fire in the first three seconds of a round, so nobody trips it before
+they have seen the normal game. Shooting at a sensible pace never triggers it.
+
+The whole thing lives in `src/hunted.js`. Numbers worth touching: `HUNT_MS` (how
+long you must survive), `LIVES`, `TRACK_SPEED` (how fast a crosshair creeps
+toward you) and `MIN_OFF` (how far away one can appear — keep it above
+`BLAST_R + PLAYER_R` or they can land right on top of you). The trigger itself
+is `RAGE_SHOTS` and `RAGE_WINDOW` in `src/game.js`.
+
+</details>
+
+---
+
 ## The joke
 
 At the end you get a grade based on how you played.
@@ -93,7 +132,8 @@ Play it properly, shooting only the boring work, and you get
 | `src/game.js` | all the game rules |
 | `src/components/Arena.jsx` | the playing field, crosshair and flying things |
 | `src/components/Intro.jsx` | the three intro cards |
-| `test-game.mjs` | 84 checks, including three full one-minute games |
+| `src/hunted.js` | the hidden second game |
+| `test-game.mjs` | 134 checks, including full simulated playthroughs of both games |
 
 `src/game.js` is plain functions, so the whole game can be played in Node with
 no browser. The tests play three full rounds — careful, wild and doing nothing —
